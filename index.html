@@ -415,6 +415,9 @@
   details.sec summary::after{content:'›';font-size:20px;color:var(--muted);transition:transform .2s}
   details.sec[open] summary::after{transform:rotate(90deg)}
   details.sec>div{padding:0 14px 12px}
+  .addfx{display:block;width:100%;margin:0 0 10px;padding:10px 12px;border:2px dashed #b9c0cc;border-radius:14px;background:repeating-linear-gradient(135deg,#f3f4f7 0 8px,#eceef3 8px 16px);font:800 13px inherit;font-family:inherit;color:var(--muted);cursor:pointer}
+  .addfx:active{transform:scale(.98)}
+  .rstat{margin-top:10px;font-size:12px;font-weight:700}.rs{padding:4px 0;color:var(--muted)}.rs.no{color:#b36b00}
 </style>
 </head>
 <body>
@@ -540,7 +543,8 @@ const dayOf = (d) => keyOf(new Date((d || new Date()).getTime() - DAY_START_HOUR
 const parseKey = k => { const p = k.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2], 12); };
 const addDays = (k, n) => { const d = parseKey(k); d.setDate(d.getDate() + n); return keyOf(d); };
 const wd = k => (parseKey(k).getDay() + 6) % 7;            // Mon=0 ... Sun=6
-const weekStart = k => addDays(k, -wd(k));
+const weekStart = k => addDays(k, -((wd(k) + 1) % 7)); /* weeks start on Sunday */
+const dowLetter = k => WD1[wd(k)];
 const WD = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const WD1 = ['M','T','W','T','F','S','S'];
 const toM = s => { const p = s.split(':').map(Number); return p[0] * 60 + p[1]; };
@@ -756,6 +760,17 @@ function pctOf(ts, dm) {
   return Math.min(99, Math.floor(d.reduce((a, t) => a + dur(t), 0) / tot * 100));
 }
 const pctFor = k => pctOf(tasksFor(k), doneMap(k));
+/* Today's big bar counts habits AND homework that is due today or overdue (or was finished today). */
+function hwItems(key, override) {
+  if (key !== S.today) return [];
+  return S.homework.filter(h => h.due <= key && (!h.done || h.doneDay === key || (override && override.id === h.id))).map(h => ({ id: 'hw:' + h.id, hw: true, type: 'any', mins: h.mins || 20, done: override && override.id === h.id ? override.done : !!h.done }));
+}
+function barModel(key, override) {
+  const ts = tasksFor(key), dm = Object.assign({}, doneMap(key)), hw = hwItems(key, override), all = ts.concat(hw);
+  hw.forEach(x => { dm[x.id] = x.done; });
+  return { all, dm, ts, hw, pct: pctOf(all, dm), done: all.filter(x => dm[x.id]).length, dMin: all.filter(x => dm[x.id]).reduce((a, t) => a + dur(t), 0), tMin: all.reduce((a, t) => a + dur(t), 0) };
+}
+const barPct = () => barModel(S.today).pct;
 function streakNow() {
   const p = S.profile; if (!p) return 0;
   const l = p.lastCompleteDay;
@@ -898,7 +913,7 @@ function show(which) { ['splash', 'auth', 'main'].forEach(id => { $('#' + id).hi
 function clearSubs() { S.subs.forEach(u => { try { u(); } catch (e) {} }); S.subs = []; }
 function resetState() {
   clearSubs();
-  Object.assign(S, { role: null, ownerUid: null, profile: null, tasks: [], days: {}, viewers: [], gotProfile: false, gotTasks: false, gotDays: false, tab: 'today', calDate: null, weekOff: 0, preview: false, lastPct: 0, celebrated: {}, shown: false, workouts: [], workErr: false, fitFilter: 'all', fitShow: 20, homework: [], hwErr: false, lastTab: null, welcomed: false, calMode: 'day', calMon: 0, hwMode: 'list', hwMon: 0, hwSel: null });
+  Object.assign(S, { role: null, ownerUid: null, profile: null, tasks: [], days: {}, viewers: [], gotProfile: false, gotTasks: false, gotDays: false, tab: 'today', calDate: null, weekOff: 0, preview: false, lastPct: 0, celebrated: {}, shown: false, workouts: [], workErr: false, fitFilter: 'all', fitShow: 20, homework: [], hwErr: false, lastTab: null, welcomed: false, calMode: 'day', calMon: 0, hwMode: 'list', hwMon: 0, hwSel: null, pushTried: false });
 }
 
 function renderAuth(msg) {
@@ -1005,7 +1020,7 @@ function startData() {
   const o = ownerPath(), onErr = e => fatal('Couldn\'t load data (' + (e.code || e.message) + '). If you\'re a parent, your access may have been removed.');
   S.subs.push(B.doc(o, p => {
     if (!p) { if (S.role === 'viewer') return fatal('This account is no longer shared with you.'); return renderOnboard(); }
-    S.profile = p; S.gotProfile = true; scheduleRender();
+    S.profile = p; S.gotProfile = true; scheduleRender(); if (!S.pushTried) { S.pushTried = true; setTimeout(pushRefresh, 1500); }
   }, onErr));
   S.subs.push(B.col(o + '/tasks', a => { S.tasks = a; S.gotTasks = true; scheduleRender(); }, null, onErr));
   S.subs.push(B.col(o + '/days', a => { S.days = {}; a.forEach(d => S.days[d.id] = d); S.gotDays = true; scheduleRender(); }, addDays(weekStart(S.today), -35), onErr));
@@ -1043,14 +1058,14 @@ function renderAll() {
   v.innerHTML = { today: viewToday, cal: viewCal, week: viewWeek, fitness: viewFitness, homework: viewHomework, rewards: viewRewards }[S.tab]();
   v.scrollTop = y;
   if (S.tab === 'today') {
-    const f = $('#fill'); const p = pctFor(S.today);
+    const f = $('#fill'); const p = barPct();
     if (f) { requestAnimationFrame(() => { f.style.width = p + '%'; }); }
     S.lastPct = p;
   }
 }
 
 function tint(t) { return t.type === 'block' ? BLOCKCOLS[(t.col || 0) % BLOCKCOLS.length] + '26' : '#e3f4ff'; }
-function repLabel(t) { return t.rep && t.rep.length ? '<span class="rep">🔁 ' + (t.rep.length === 7 ? 'daily' : t.rep.map(i => WD[i].slice(0, 2)).join(' ')) + '</span>' : ''; }
+function repLabel(t) { return t.rep && t.rep.length ? '<span class="rep">🔁 ' + (t.rep.length === 7 ? 'daily' : t.rep.slice().sort((a, b) => (a + 1) % 7 - (b + 1) % 7).map(i => WD[i].slice(0, 2)).join(' ')) + '</span>' : ''; }
 function taskRow(t, key, interactive) {
   const done = !!doneMap(key)[t.id], blk = t.type === 'block';
   const sub = blk ? fmtT(t.start) + ' – ' + fmtT(t.end) + ' · ' + dur(t) + ' min' : '⏱ ' + t.mins + ' min · anytime';
@@ -1063,13 +1078,13 @@ function taskRow(t, key, interactive) {
 }
 
 function viewToday() {
-  const key = S.today, ts = tasksFor(key), dm = doneMap(key), p = pctFor(key), P = S.profile, ro = readOnly();
+  const key = S.today, ts = tasksFor(key), dm = doneMap(key), BM = barModel(key), p = BM.pct, P = S.profile, ro = readOnly();
   const any = ts.filter(t => t.type === 'any'), blk = ts.filter(t => t.type === 'block').sort((a, b) => toM(a.start) - toM(b.start));
-  const dMin = ts.filter(t => dm[t.id]).reduce((a, t) => a + dur(t), 0), tMin = ts.reduce((a, t) => a + dur(t), 0);
+  const dMin = BM.dMin, tMin = BM.tMin;
   const cls = p >= 100 ? 'done' : p >= 60 ? '' : p >= 25 ? 'mid' : 'low';
   let h = '<div class="hero"><div class="hero-row"><div class="mascot" data-act="poke">' + mascot(p, P.mascotColor) + '</div><div class="bubble">' + bubbleMsg(p) + '</div></div>' +
     '<div style="margin-top:12px"><div class="bar-meta"><span>Today\'s goal</span><b>' + p + '%</b></div><div class="bar"><div class="fill ' + cls + '" id="fill" style="width:' + S.lastPct + '%"></div></div>' +
-    '<div class="bar-meta"><span>' + dMin + ' / ' + tMin + ' min</span><span>' + ts.filter(t => dm[t.id]).length + '/' + ts.length + ' tasks</span></div></div></div>' + fixedStrip(key);
+    '<div class="bar-meta"><span>' + dMin + ' / ' + tMin + ' min</span><span>' + BM.done + '/' + BM.all.length + ' to-dos</span></div></div></div>' + fixedStrip(key);
   const hwDue = hwOpen().filter(x => x.due <= key).sort(hwSort), hwSec = hwDue.length ? '<h2>📚 Homework due <span>' + hwDue.length + '</span></h2>' + hwDue.map(x => hwRow(x, ro)).join('') : '';
   if (!ts.length) {
     h += hwSec;
@@ -1091,14 +1106,14 @@ function fixedStrip(key) {
 /* ---------- month calendar (shared by Calendar + Homework) ---------- */
 function monthInfo(off) {
   const b = parseKey(S.today); b.setDate(1); b.setMonth(b.getMonth() + off);
-  const y = b.getFullYear(), m = b.getMonth() + 1, first = y + '-' + pad(m) + '-01', dim = new Date(y, m, 0).getDate(), lead = wd(first);
+  const y = b.getFullYear(), m = b.getMonth() + 1, first = y + '-' + pad(m) + '-01', dim = new Date(y, m, 0).getDate(), lead = (wd(first) + 1) % 7;
   const rows = Math.ceil((lead + dim) / 7), start = addDays(first, -lead), keys = [];
   for (let i = 0; i < rows * 7; i++) keys.push(addDays(start, i));
   return { y, m, first, keys, label: parseKey(first).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) };
 }
 function monthShell(mi, goAct, cellFn, off) {
   let h = '<div class="nav"><button data-act="' + goAct + '" data-d="-1" aria-label="Previous month">‹</button><div><b>' + mi.label + '</b><small>' + (off === 0 ? 'This month' : '<a data-act="' + goAct + '" data-d="reset" style="color:var(--blue);font-weight:900">Back to today</a>') + '</small></div><button data-act="' + goAct + '" data-d="1" aria-label="Next month">›</button></div>';
-  h += '<div class="mgrid mhead">' + WD.map(d => '<div>' + d.slice(0, 1) + (d === 'Thu' || d === 'Sat' || d === 'Sun' || d === 'Tue' ? '' : '') + '</div>').join('') + '</div><div class="mgrid">';
+  h += '<div class="mgrid mhead">' + ['S','M','T','W','T','F','S'].map(d => '<div>' + d + '</div>').join('') + '</div><div class="mgrid">';
   mi.keys.forEach(k => { h += cellFn(k, k.slice(0, 7) !== mi.first.slice(0, 7)); });
   return h + '</div>';
 }
@@ -1160,9 +1175,11 @@ function viewCal() {
   }).join('');
   const nm = nowMin(), nowLine = key === S.today && nm >= H0 * 60 && nm <= (H1 + 1) * 60 ? '<div class="now" style="top:' + ((nm / 60 - H0) * PX) + 'px"></div>' : '';
   const isT = key === S.today;
-  return calToggle('day') + '<div class="nav"><button data-act="calGo" data-d="-1" aria-label="Previous day">‹</button><div><b>' + (isT ? 'Today' : prettyDate(key)) + '</b><small>' + (isT ? prettyDate(key) : (key === addDays(S.today, 1) ? 'Tomorrow' : '') + ' · ' + pctFor(key) + '% done') + '</small></div><button data-act="calGo" data-d="1" aria-label="Next day">›</button></div>' +
+  const hwDay = S.homework.filter(x => isT ? (x.due <= key && (!x.done || x.doneDay === key)) : x.due === key).sort(hwSort);
+  return calToggle('day') + (readOnly() ? '' : '<button class="addfx" data-act="addFixed">🏫 + Add school or other blocked time</button>') + '<div class="nav"><button data-act="calGo" data-d="-1" aria-label="Previous day">‹</button><div><b>' + (isT ? 'Today' : prettyDate(key)) + '</b><small>' + (isT ? prettyDate(key) : (key === addDays(S.today, 1) ? 'Tomorrow' : '') + ' · ' + pctFor(key) + '% done') + '</small></div><button data-act="calGo" data-d="1" aria-label="Next day">›</button></div>' +
     '<div class="cal"><div class="tl" style="height:' + (H1 - H0 + 1) * PX + 'px">' + hrs + fixedHtml + blocks + nowLine + '</div>' +
-    '<div class="side"><h3>Anytime</h3>' + (any.length ? any.map(t => '<div class="sc ' + (dm[t.id] ? 'done' : '') + '"' + (live ? ' data-act="toggle" data-id="' + t.id + '"' : '') + '>' + esc(t.icon || '') + ' ' + esc(t.title) + '<small>' + t.mins + ' min ' + (dm[t.id] ? '✓' : '') + '</small></div>').join('') : '<div class="sc"><small>Nothing here</small></div>') + '</div></div>';
+    '<div class="side"><h3>Anytime</h3>' + (any.length ? any.map(t => '<div class="sc ' + (dm[t.id] ? 'done' : '') + '"' + (live ? ' data-act="toggle" data-id="' + t.id + '"' : '') + '>' + esc(t.icon || '') + ' ' + esc(t.title) + '<small>' + t.mins + ' min ' + (dm[t.id] ? '✓' : '') + '</small></div>').join('') : '<div class="sc"><small>Nothing here</small></div>') +
+      '<h3 style="margin-top:14px">Homework</h3>' + (hwDay.length ? hwDay.map(x => '<div class="sc ' + (x.done ? 'done' : '') + '"' + (live ? ' data-act="hwToggle" data-id="' + x.id + '"' : '') + '>' + subj(x.subject)[1] + ' ' + esc(x.title) + '<small>' + esc(x.subject) + (x.mins ? ' · ' + x.mins + ' min' : '') + (key === S.today && !x.done && x.due < S.today ? ' · late' : '') + ' ' + (x.done ? '✓' : '') + '</small></div>').join('') : '<div class="sc"><small>None due</small></div>') + '</div></div>';
 }
 
 function weekModel(off) {
@@ -1180,10 +1197,10 @@ function weekTips(m) {
   if (rated.length && rated[0].x.p < 100) tips.push(['🎯', '<b>' + esc(rated[0].r.t.title) + '</b> was the toughest at ' + rated[0].x.p + '%. Try pairing it with something already in your routine, or making it a little shorter.']);
   let worst = -1, wv = 2;
   m.keys.forEach((k, i) => { if (k >= S.today) return; let c = 0, d = 0; m.rows.forEach(r => { if (r.cells[i] === 'y') { c++; d++; } else if (r.cells[i] === 'n') c++; }); if (c >= 2 && d / c < wv) { wv = d / c; worst = i; } });
-  if (worst >= 0 && wv < 0.7) tips.push(['📅', '<b>' + ['Mondays','Tuesdays','Wednesdays','Thursdays','Fridays','Saturdays','Sundays'][worst] + '</b> are the weak spot (' + Math.round(wv * 100) + '%). Move a task to an easier day or shrink it.']);
+  if (worst >= 0 && wv < 0.7) tips.push(['📅', '<b>' + ['Mondays','Tuesdays','Wednesdays','Thursdays','Fridays','Saturdays','Sundays'][wd(m.keys[worst])] + '</b> are the weak spot (' + Math.round(wv * 100) + '%). Move a task to an easier day or shrink it.']);
   const heavy = m.keys.map(k => tasksFor(k).reduce((a, t) => a + dur(t), 0));
   const hi = heavy.indexOf(Math.max.apply(null, heavy));
-  if (heavy[hi] > 240) tips.push(['⚖️', '<b>' + WD[hi] + '</b> is packed (' + (Math.round(heavy[hi] / 6) / 10) + ' hrs). Spreading things out makes streaks easier to keep.']);
+  if (heavy[hi] > 240) tips.push(['⚖️', '<b>' + WD[wd(m.keys[hi])] + '</b> is packed (' + (Math.round(heavy[hi] / 6) / 10) + ' hrs). Spreading things out makes streaks easier to keep.']);
   const best = rated.slice().reverse().find(o => o.x.p === 100 && o.x.n >= 3);
   if (best) tips.push(['🔥', 'You\'re perfect on <b>' + esc(best.r.t.title) + '</b> this week. Keep that going!']);
   if (m.pct >= 85 && m.total >= 5) tips.push(['🌟', 'Amazing week! Think about adding one small new habit to level up.']);
@@ -1198,7 +1215,7 @@ function viewWeek() {
   let h = '<div class="nav"><button data-act="weekGo" data-d="1" ' + (S.weekOff >= 5 ? 'disabled' : '') + '>‹</button><div><b>' + (S.weekOff === 0 ? 'This week' : S.weekOff === 1 ? 'Last week' : S.weekOff + ' weeks ago') + '</b><small>' + range + '</small></div><button data-act="weekGo" data-d="-1" ' + (S.weekOff <= 0 ? 'disabled' : '') + '>›</button></div>';
   h += '<div class="wk"><div><div class="weekhead"><div class="ring" style="--p:' + m.pct + '"><div>' + m.pct + '%</div></div><div><b style="font-size:17px">' + (m.pct >= 85 ? 'Awesome week! 🌟' : m.pct >= 60 ? 'Solid week! 💪' : m.total ? 'Room to grow 🌱' : 'No habits yet') + '</b><div style="font-size:13px;font-weight:700;color:var(--muted);margin-top:4px">' + m.done + ' of ' + m.total + ' habit-days done</div></div></div>';
   if (m.rows.length) {
-    h += '<div class="grid"><div class="gr"><div></div>' + m.keys.map((k, i) => '<div class="gh ' + (k === S.today ? 't' : '') + '">' + WD1[i] + '</div>').join('') + '</div>';
+    h += '<div class="grid"><div class="gr"><div></div>' + m.keys.map((k, i) => '<div class="gh ' + (k === S.today ? 't' : '') + '">' + dowLetter(k) + '</div>').join('') + '</div>';
     m.rows.forEach(r => { const x = r.cells.filter(c => c === 'y' || c === 'n'), pc = x.length ? Math.round(x.filter(c => c === 'y').length / x.length * 100) + '%' : '';
       h += '<div class="gr"><div class="nm"><span>' + esc(r.t.icon || '') + ' ' + esc(r.t.title) + '</span><small>' + pc + '</small></div>' + r.cells.map(c => '<div class="cell ' + c + '">' + (c === 'y' ? '✓' : c === 'n' ? '✕' : c === 'o' ? '·' : '') + '</div>').join('') + '</div>'; });
     h += '</div><div class="legend"><span>🟩 done</span><span>🟥 missed</span><span>⬜ off day</span><span>▫️ coming up</span></div>';
@@ -1234,30 +1251,37 @@ function pickReward(P) {
   return { type: 'quote', text: QUOTES[Math.floor(Math.random() * QUOTES.length)] };
 }
 
-function toggle(id, el) {
-  if (readOnly()) return;
-  const t = S.tasks.find(x => x.id === id); if (!t || !sched(t, S.today)) return;
-  const key = S.today, P = S.profile, day = S.days[key] || {};
-  const was = !!(day.done && day.done[id]), now = !was;
-  const dm = Object.assign({}, day.done || {}); dm[id] = now;
-  const ts = tasksFor(key), newPct = pctOf(ts, dm);
-  const dayPatch = { date: key, done: {} }; dayPatch.done[id] = now;
-  const userPatch = {}; let gain = 0, newCheck = 0;
-  if (now && !(day.paid && day.paid[id])) { gain += Math.max(5, Math.round(dur(t) / 2)); newCheck = 1; dayPatch.paid = {}; dayPatch.paid[id] = true; }
-  const th = P.threshold || 100; let streakNew = streakNow(), completed = !!day.completed, justCompleted = false;
+function finishDay(key, now, newPct, dayPatch, userPatch) {
+  const P = S.profile, day = S.days[key] || {}, th = P.threshold || 100;
+  let streakNew = streakNow(), completed = !!day.completed, justCompleted = false, gain = 0, celebrate = false, reward = day.reward || null;
   if (now && newPct >= th && !day.completed) {
     justCompleted = true; completed = true; dayPatch.completed = true;
     const y = addDays(key, -1);
     streakNew = P.lastCompleteDay === key ? (P.streak || 0) : P.lastCompleteDay === y ? (P.streak || 0) + 1 : 1;
     userPatch.streak = streakNew; userPatch.bestStreak = Math.max(P.bestStreak || 0, streakNew); userPatch.lastCompleteDay = key;
   }
-  let reward = day.reward || null, celebrate = false;
   if (now && newPct >= 100 && !S.celebrated[key]) {
     celebrate = true; S.celebrated[key] = true;
     if (!day.bonusPaid) { gain += 50; dayPatch.bonusPaid = true; }
     if (!reward) { reward = pickReward(P); dayPatch.reward = reward; if (reward.type === 'xp') gain += reward.xp; if (reward.type === 'color') userPatch.unlockedColors = B.union(reward.color); }
   }
   if (newPct < 100) S.celebrated[key] = false;
+  return { gain, justCompleted, celebrate, reward, streakNew, completed };
+}
+
+function toggle(id, el) {
+  if (readOnly()) return;
+  const t = S.tasks.find(x => x.id === id); if (!t || !sched(t, S.today)) return;
+  const key = S.today, P = S.profile, day = S.days[key] || {};
+  const was = !!(day.done && day.done[id]), now = !was;
+  const dm = Object.assign({}, day.done || {}); dm[id] = now;
+  const ts = tasksFor(key), hwi = hwItems(key), dmAll = Object.assign({}, dm); hwi.forEach(x => { dmAll[x.id] = x.done; });
+  const newPct = pctOf(ts.concat(hwi), dmAll);
+  const dayPatch = { date: key, done: {} }; dayPatch.done[id] = now;
+  const userPatch = {}; let gain = 0, newCheck = 0;
+  if (now && !(day.paid && day.paid[id])) { gain += Math.max(5, Math.round(dur(t) / 2)); newCheck = 1; dayPatch.paid = {}; dayPatch.paid[id] = true; }
+  const fin = finishDay(key, now, newPct, dayPatch, userPatch); gain += fin.gain;
+  const streakNew = fin.streakNew, completed = fin.completed, justCompleted = fin.justCompleted, celebrate = fin.celebrate, reward = fin.reward;
   const xpBefore = P.xp || 0, xpAfter = xpBefore + gain, tc = (P.totalChecks || 0) + newCheck;
   if (gain) { userPatch.xp = B.inc(gain); dayPatch.xpToday = B.inc(gain); }
   if (newCheck) userPatch.totalChecks = B.inc(newCheck);
@@ -1268,7 +1292,7 @@ function toggle(id, el) {
   if (now) { test('early', hr >= 3 && hr < 8); test('owl', hr >= 22 || hr < 3); }
   test('streak3', streakNew >= 3); test('streak7', streakNew >= 7); test('streak14', streakNew >= 14); test('streak30', streakNew >= 30);
   test('lvl5', lvlInfo(xpAfter).level >= 5); test('lvl10', lvlInfo(xpAfter).level >= 10);
-  if (completed && wd(key) === 6) { const ws = weekStart(key); let ok = true; for (let i = 0; i < 6; i++) { const d = S.days[addDays(ws, i)]; if (!d || !d.completed) ok = false; } test('perfectweek', ok); }
+  if (completed && wd(key) === 5) { const ws = weekStart(key); let ok = true; for (let i = 0; i < 6; i++) { const d = S.days[addDays(ws, i)]; if (!d || !d.completed) ok = false; } test('perfectweek', ok); }
   if (add.length) userPatch.badges = B.union.apply(null, add);
 
   if (now) { comboHit(); ding(); buzz(15); burstAt(el && el.querySelector ? (el.querySelector('.check') || el) : el); floatXP(el, (newCheck ? '+' + Math.max(5, Math.round(dur(t) / 2)) + ' XP' : '✓')); S.justChecked = id; setTimeout(() => { S.justChecked = null; }, 700); }
@@ -1308,7 +1332,7 @@ function openTaskForm(task) {
     '<label>Type</label><div class="seg"><button data-act="ftype" data-v="any" id="tyAny">✅ Anytime today</button><button data-act="ftype" data-v="block" id="tyBlk">⏰ Set time</button><button data-act="ftype" data-v="fixed" id="tyFix">🏫 Blocked time</button></div><p class="note" id="fixNote" hidden>For things like school or work. It shows as blocked-off time on your calendar. You can\'t check it off, and it doesn\'t count toward your bar, XP or streak.</p>' +
     '<div id="anyF"><label>How long (minutes)?</label><input id="fMins" type="number" inputmode="numeric" min="1" max="600" value="' + (t.mins || 20) + '"></div>' +
     '<div id="blkF"><label>Start → End</label><div class="row2"><input id="fStart" type="time" value="' + (t.start || '17:00') + '"><input id="fEnd" type="time" value="' + (t.end || '18:00') + '"></div></div>' +
-    '<label>Repeat weekly on <span style="text-transform:none;font-weight:700">(leave empty for just once)</span></label><div class="days" id="fDays">' + WD1.map((d, i) => '<button data-act="fday" data-d="' + i + '" title="' + WD[i] + '">' + d + '</button>').join('') + '</div>' +
+    '<label>Repeat weekly on <span style="text-transform:none;font-weight:700">(leave empty for just once)</span></label><div class="days" id="fDays">' + [6, 0, 1, 2, 3, 4, 5].map(i => '<button data-act="fday" data-d="' + i + '" title="' + WD[i] + '">' + WD1[i] + '</button>').join('') + '</div>' +
     '<div id="dateF"><label>Date</label><input id="fDate" type="date" value="' + (t.date || S.today) + '"></div>' +
     '<button class="btn" data-act="saveTask">' + (task ? 'Save changes' : 'Add habit') + '</button><button class="btn alt" data-act="closeSheet">Cancel</button>');
   syncForm();
@@ -1328,7 +1352,7 @@ function saveTask() {
   const o = FM.orig, id = FM.id || rid();
   if (!o) { d.createdDate = S.today; d.endDate = null; d.archived = false; d.col = Math.floor(Math.random() * BLOCKCOLS.length); }
   else if (!(o.rep && o.rep.length) && d.rep.length) { d.createdDate = S.today; d.endDate = null; }
-  const before = pctFor(S.today);
+  const before = barPct();
   B.set(ownerPath() + '/tasks/' + id, d).catch(() => toast('Couldn\'t save. Check your connection.'));
   closeSheet();
   if (d.type === 'fixed') toast(o ? 'Saved ✓' : 'Blocked off 🏫');
@@ -1495,7 +1519,7 @@ function hwToggle(id, el) {
   if (readOnly()) return;
   const h = S.homework.find(x => x.id === id); if (!h) return;
   const P = S.profile, now = !h.done, patch = { done: now, doneAt: now ? Date.now() : null, doneDay: now ? S.today : null };
-  const userPatch = {}, notes = []; let gain = 0, cleared = false;
+  const userPatch = {}, notes = [], dayPatch = { date: S.today }; let gain = 0, cleared = false, hwGain = 0;
   if (now && !h.paid) {
     gain = Math.min(60, 10 + Math.min(40, Math.round((h.mins || 0) / 5)) + (h.pri === 2 ? 5 : 0) + (h.due >= S.today ? 5 : 0));
     patch.paid = true;
@@ -1506,15 +1530,20 @@ function hwToggle(id, el) {
     tst('hw1', total >= 1); tst('hw10', total >= 10); tst('hw50', total >= 50); tst('hwclear', cleared);
     if (add.length) userPatch.badges = B.union.apply(null, add);
     add.forEach(b => { const bd = BADGES.find(x => x[0] === b); if (bd) notes.push('🏅 New badge: ' + bd[2]); });
-    const xb = P.xp || 0; userPatch.xp = B.inc(gain);
-    if (lvlInfo(xb + gain).level > lvlInfo(xb).level) notes.push('⬆️ LEVEL UP! You\'re level ' + lvlInfo(xb + gain).level);
+    hwGain = gain;
   }
-  if (now) { comboHit(); ding(); buzz(gain ? [15, 40, 15] : 15); burstAt(el && el.querySelector ? (el.querySelector('.check') || el) : el); floatXP(el, gain ? '+' + gain + ' XP' : '✓'); S.justChecked = id; setTimeout(() => { S.justChecked = null; }, 700); const m = $('.hero .mascot'); if (m) m.classList.add('bounce'); }
+  const bm = barModel(S.today, { id, done: now }), fin = finishDay(S.today, now, bm.pct, dayPatch, userPatch);
+  gain += fin.gain;
+  if (gain) { const xb = P.xp || 0; userPatch.xp = B.inc(gain); dayPatch.xpToday = B.inc(gain); if (lvlInfo(xb + gain).level > lvlInfo(xb).level) notes.push('⬆️ LEVEL UP! You\'re level ' + lvlInfo(xb + gain).level); }
+  if (fin.justCompleted && !fin.celebrate) notes.push('🔥 Streak saved! ' + fin.streakNew + ' day' + (fin.streakNew === 1 ? '' : 's'));
+  if (now) { comboHit(); ding(); buzz(gain ? [15, 40, 15] : 15); burstAt(el && el.querySelector ? (el.querySelector('.check') || el) : el); floatXP(el, hwGain ? '+' + hwGain + ' XP' : '✓'); S.justChecked = id; setTimeout(() => { S.justChecked = null; }, 700); const m = $('.hero .mascot'); if (m) m.classList.add('bounce'); }
   const bad = () => toast('Couldn\'t save. Check your connection.');
   B.set(ownerPath() + '/homework/' + id, patch).catch(bad);
+  if (Object.keys(dayPatch).length > 1) B.set(ownerPath() + '/days/' + S.today, dayPatch).catch(bad);
   if (Object.keys(userPatch).length) B.set(ownerPath(), userPatch).catch(bad);
   notes.forEach(n => toast(n));
-  if (cleared) { fanfare(); buzz([40, 60, 40, 60, 120]); confetti(160, .35); }
+  if (fin.celebrate) { const dd = S.days[S.today] || {}; setTimeout(() => showCelebration({ xp: (dd.xpToday || 0) + gain, streak: fin.streakNew, level: lvlInfo((P.xp || 0) + gain).level, reward: fin.reward }), 700); }
+  else if (cleared) { fanfare(); buzz([40, 60, 40, 60, 120]); confetti(160, .35); }
 }
 function openHwMenu(id) {
   const h = S.homework.find(x => x.id === id); if (!h) return;
@@ -1626,7 +1655,7 @@ function viewFitness() {
   const maxD = Math.max.apply(null, fw.perDay.concat([0.0001]));
   const bars = fw.keys.map((k, i) => {
     const d = fw.perDay[i] / unitKm(u), ht = fw.perDay[i] > 0 ? Math.max(6, Math.round(fw.perDay[i] / maxD * 80)) : 4;
-    return '<div class="cbar ' + (k === S.today ? 't' : '') + '"><span class="v">' + (d > 0 ? num(d) : '') + '</span><div class="b' + (d > 0 ? '' : ' zero') + '" style="height:' + ht + 'px"></div><span class="d">' + WD1[i] + '</span></div>';
+    return '<div class="cbar ' + (k === S.today ? 't' : '') + '"><span class="v">' + (d > 0 ? num(d) : '') + '</span><div class="b' + (d > 0 ? '' : ' zero') + '" style="height:' + ht + 'px"></div><span class="d">' + dowLetter(k) + '</span></div>';
   }).join('');
   const prs = prBoard();
   h += '<div class="fgrid"><div class="panel"><h2>Running this week <span>' + u + '</span></h2><div class="chart">' + bars + '</div></div>' +
@@ -1848,6 +1877,7 @@ const ACT = {
   fday: el => { const d = +el.dataset.d, i = FM.rep.indexOf(d); if (i >= 0) FM.rep.splice(i, 1); else FM.rep.push(d); syncForm(); },
   saveTask, editTask: el => { const t = S.tasks.find(x => x.id === el.dataset.id); if (t) openTaskForm(t); },
   askDelete: el => askDelete(el.dataset.id), doDelete: el => doDelete(el.dataset.id),
+  addFixed: () => { openTaskForm(null); FM.type = 'fixed'; syncForm(); },
   calMode: el => { S.calMode = el.dataset.v; renderAll(); },
   calMonGo: el => { S.calMon = el.dataset.d === 'reset' ? 0 : (S.calMon || 0) + +el.dataset.d; renderAll(); },
   monthDay: el => { const k = el.dataset.k; S.calDate = k === S.today ? null : k; S.calMode = 'day'; renderAll(); },
@@ -1861,7 +1891,7 @@ const ACT = {
   hdue: el => { $('#hDue').value = addDays(S.today, +el.dataset.n); },
   saveHw,
   hap: () => { try { localStorage.setItem('sb_nohap', hapOn() ? '1' : '0'); } catch (e) {} S.setOpen = 'sound'; openSettings(); if (hapOn()) buzz(20); },
-  remindOn: () => remindSave(true), remindOff: () => remindSave(false),
+  remindOn: () => remindSave(true), remindOff: () => remindSave(false), remindTest,
   saveSettings, newCode, unlink,
   mute: () => { try { localStorage.setItem('sb_mute', muted() ? '0' : '1'); } catch (e) {} S.setOpen = 'sound'; openSettings(); },
   copyCode: () => { try { navigator.clipboard.writeText(S.profile.inviteCode); toast('Code copied 📋'); } catch (e) { toast('Code: ' + S.profile.inviteCode); } },
@@ -1914,23 +1944,43 @@ function remindMsg() {
   const t = pickOne([name + ' is waiting! 👀', 'Quick win time ⚡', st ? '🔥 Protect your ' + st + '-day streak' : 'Start a streak today 🔥', 'Tiny step, big XP 💥']);
   return [t, what + ' left today. Knock one out!'];
 }
-function notify(title, body, tag) {
+const pushReady = () => !B.demo && VAPID_KEY && VAPID_KEY.indexOf('YOUR_') !== 0;
+async function swReg() {
+  try { if ('serviceWorker' in navigator && location.protocol !== 'file:') return SW || await Promise.race([navigator.serviceWorker.ready, new Promise((_, rj) => setTimeout(() => rj(new Error('timeout')), 4000))]); } catch (e) {}
+  return null;
+}
+async function notify(title, body, tag, loud) {
   try {
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    const o = { body, icon: 'icon-192.png', badge: 'icon-192.png', tag: tag || 'sb-hourly', renotify: true, data: { url: './' } };
-    if (SW && SW.showNotification) SW.showNotification(title, o); else new Notification(title, o);
-  } catch (e) {}
+    if (!('Notification' in window) || Notification.permission !== 'granted') return 'no-permission';
+    const o = { body, icon: 'icon-192.png', badge: 'icon-192.png', tag: tag || 'sb-hourly', renotify: !!loud, data: { url: './' } };
+    const reg = await swReg();
+    if (reg && reg.showNotification) { await reg.showNotification(title, o); return 'ok'; }
+    if (IS_IOS) return 'no-sw';
+    new Notification(title, o); return 'ok';
+  } catch (e) { return 'error: ' + (e.message || e); }
 }
 function remindTick() {
   const P = S.profile, r = P && P.remind;
   if (!r || !r.on || S.role !== 'owner' || S.preview || !('Notification' in window) || Notification.permission !== 'granted') return;
-  try { if (localStorage.getItem('sb_push') === '1') return; } catch (e) {}
   const h = new Date().getHours();
   if (h < r.from || h >= r.to || (h - r.from) % (r.every || 1)) return;
+  if (!document.hidden) return;
   const key = S.today + '@' + h;
   try { if (localStorage.getItem('sb_lastping') === key) return; localStorage.setItem('sb_lastping', key); } catch (e) {}
-  if (!document.hidden) return;
-  const m = remindMsg(); if (m) notify(m[0], m[1]);
+  const m = remindMsg(); if (m) notify(m[0], m[1], 'sb-hourly', false);
+}
+/* Tokens change over time. Refresh ours each launch so the hourly push keeps reaching this device. */
+async function pushRefresh() {
+  const P = S.profile, r = P && P.remind;
+  if (!r || !r.on || S.role !== 'owner' || S.preview || !pushReady() || !('Notification' in window) || Notification.permission !== 'granted') return;
+  try { const reg = await swReg(); if (!reg) return; const tok = await B.push(reg, VAPID_KEY); if (tok && !(P.fcmTokens || []).includes(tok)) B.set(ownerPath(), { fcmTokens: B.union(tok), tz: Intl.DateTimeFormat().resolvedOptions().timeZone }); } catch (e) {}
+}
+function remindStatus(P) {
+  const ok = (v, t) => '<div class="rs ' + (v ? 'ok' : 'no') + '">' + (v ? '✅' : '⚠️') + ' ' + t + '</div>';
+  const tokens = (P.fcmTokens || []).length;
+  return '<div class="rstat">' + ok(Notification.permission === 'granted', 'Permission: ' + Notification.permission) +
+    ok(pushReady(), pushReady() ? 'Push key set in index.html' : 'Push key (VAPID_KEY) not set, so reminders only show while the app is open') +
+    ok(!pushReady() || tokens > 0, pushReady() ? (tokens ? 'This account has ' + tokens + ' device' + (tokens > 1 ? 's' : '') + ' registered for push' : 'No device registered yet. Tap Save reminder settings') : 'Background push is off') + '</div>';
 }
 function remindUI(P) {
   const r = P.remind || { on: false, every: 1, from: 8, to: 21 };
@@ -1938,30 +1988,37 @@ function remindUI(P) {
   if (!('Notification' in window)) return h + '<p class="note">This browser can\'t show notifications.</p>';
   if (IS_IOS && !STANDALONE()) return h + '<p class="note">On iPhone / iPad: tap <b>Share</b>, then <b>Add to Home Screen</b>, open ' + APP_NAME + ' from your Home Screen, and come back here to turn reminders on. (Apple only allows notifications for Home Screen apps.)</p>';
   if (Notification.permission === 'denied') return h + '<p class="note">Notifications are blocked. Turn them back on in your device Settings, then reopen the app.</p>';
-  const hrs = sel => Array.from({ length: 24 }, (_, i) => '<option value="' + i + '"' + (i === sel ? ' selected' : '') + '>' + fmtT(i + ':00') + '</option>').join('');
+  const hrs = (sel, end) => Array.from({ length: end ? 24 : 24 }, (_, i) => i + (end ? 1 : 0)).map(i => '<option value="' + i + '"' + (i === sel ? ' selected' : '') + '>' + (i === 24 ? 'Midnight' : fmtT(i + ':00')) + '</option>').join('');
   h += '<p class="note">Only pings you when something is still left to do.</p><label>Remind me every</label><select id="rEvery">' + [1, 2, 3].map(v => '<option value="' + v + '"' + ((r.every || 1) === v ? ' selected' : '') + '>' + (v === 1 ? 'hour' : v + ' hours') + '</option>').join('') + '</select>' +
-    '<label>From → until</label><div class="row2"><select id="rFrom">' + hrs(r.from == null ? 8 : r.from) + '</select><select id="rTo">' + hrs(r.to == null ? 21 : r.to) + '</select></div>' +
-    '<button class="btn" data-act="remindOn">' + (r.on ? 'Save reminder settings' : 'Turn on reminders') + '</button>' + (r.on ? '<button class="btn alt" data-act="remindOff">Turn off</button>' : '');
-  if (!B.demo && (!VAPID_KEY || VAPID_KEY.indexOf('YOUR_') === 0)) h += '<p class="note" style="margin-top:6px">Heads up: background push isn\'t set up yet (see SETUP.md). Reminders will show while the app is open.</p>';
+    '<label>From → until</label><div class="row2"><select id="rFrom">' + hrs(r.from == null ? 8 : r.from) + '</select><select id="rTo">' + hrs(r.to == null ? 21 : r.to, true) + '</select></div>' +
+    '<button class="btn" data-act="remindOn">' + (r.on ? 'Save reminder settings' : 'Turn on reminders') + '</button>' + (r.on ? '<button class="btn alt" data-act="remindTest">🔔 Send me a test notification</button><button class="btn alt" data-act="remindOff">Turn off</button>' : '');
+  if (r.on) h += remindStatus(P);
   return h;
+}
+async function remindTest() {
+  const res = await notify('🔔 Test from ' + (S.profile.mascotName || 'Bloop'), 'If you can see this, notifications work on this device!', 'sb-test', true);
+  toast(res === 'ok' ? 'Sent! Check your notifications 🔔' : res === 'no-permission' ? 'Notifications aren\'t allowed yet. Tap Save reminder settings.' : res === 'no-sw' ? 'Not ready yet. Close the app, reopen it from the Home Screen, and try again.' : 'Couldn\'t show it: ' + res);
 }
 async function remindSave(on) {
   const r = { on, every: +(($('#rEvery') || {}).value || 1), from: +(($('#rFrom') || {}).value || 8), to: +(($('#rTo') || {}).value || 21) };
   if (on && r.to <= r.from) return toast('"Until" has to be later than "from"');
   const patch = { remind: r, tz: Intl.DateTimeFormat().resolvedOptions().timeZone };
+  let pushMsg = '';
   if (on) {
     let perm = Notification.permission;
     if (perm === 'default') { try { perm = await Notification.requestPermission(); } catch (e) {} }
     if (perm !== 'granted') return toast('Notifications are blocked. Allow them in Settings.');
-    if (!B.demo && SW && VAPID_KEY && VAPID_KEY.indexOf('YOUR_') !== 0) {
-      try { const tok = await B.push(SW, VAPID_KEY); if (tok) { patch.fcmTokens = B.union(tok); try { localStorage.setItem('sb_push', '1'); } catch (e) {} } }
-      catch (e) { toast('Background push couldn\'t start. Reminders work while the app is open.'); }
+    if (pushReady()) {
+      try { const reg = await swReg(); if (!reg) throw new Error('no service worker'); const tok = await B.push(reg, VAPID_KEY); if (tok) patch.fcmTokens = B.union(tok); else pushMsg = 'Push token missing'; }
+      catch (e) { pushMsg = 'Background push couldn\'t start (' + (e.message || e) + ')'; }
     }
-  } else { try { localStorage.removeItem('sb_push'); } catch (e) {} }
+  }
   B.set(ownerPath(), patch).catch(() => toast('Couldn\'t save.'));
   closeSheet(); buzz(20);
-  if (on) { toast('Reminders on 🔔'); notify('🔔 Reminders are on', 'I\'ll nudge you ' + (r.every === 1 ? 'every hour' : 'every ' + r.every + ' hours') + ' when something is left.', 'sb-welcome'); }
-  else toast('Reminders off');
+  if (on) {
+    const res = await notify('🔔 Reminders are on', 'I\'ll nudge you ' + (r.every === 1 ? 'every hour' : 'every ' + r.every + ' hours') + ' when something is left.', 'sb-welcome', true);
+    toast(pushMsg || (res === 'ok' ? 'Reminders on 🔔' : 'Reminders saved, but this device couldn\'t show one (' + res + ')'));
+  } else toast('Reminders off');
 }
 
 async function boot() {

@@ -59,12 +59,13 @@ async function load() {
   const owner = link && link.ownerUid ? link.ownerUid : me.uid;
   const [P, tasks, day, hw] = await Promise.all([get("users/" + owner, me.token), get(`users/${owner}/tasks`, me.token, true), get(`users/${owner}/days/${today}`, me.token), get(`users/${owner}/homework`, me.token, true)]);
   if (!P) return null;
-  const done = (day && day.done) || {}, ts = tasks.filter(t => sched(t, today)), tot = ts.reduce((a, t) => a + dur(t), 0);
-  const dn = ts.filter(t => done[t.id]), all = ts.length && dn.length === ts.length;
-  const pct = all ? 100 : tot ? Math.min(99, Math.floor(dn.reduce((a, t) => a + dur(t), 0) / tot * 100)) : 0;
+  const done = (day && day.done) || {}, hwDue = hw.filter(h => !h.done && h.due <= today);
+  // the bar counts habits + homework due today/overdue (or finished today)
+  const items = tasks.filter(t => sched(t, today)).map(t => ({ t, d: !!done[t.id], m: dur(t) })).concat(hw.filter(h => h.due <= today && (!h.done || h.doneDay === today)).map(h => ({ t: null, d: !!h.done, m: +h.mins || 20 })));
+  const ts = items.filter(x => x.t).map(x => x.t), tot = items.reduce((a, x) => a + x.m, 0), dn = items.filter(x => x.d), all = items.length && dn.length === items.length;
+  const pct = all ? 100 : tot ? Math.min(99, Math.floor(dn.reduce((a, x) => a + x.m, 0) / tot * 100)) : 0;
   const yest = keyOf(new Date(Date.now() - DAY_START_HOUR * 3600e3 - 864e5));
   const streak = (P.lastCompleteDay === today || P.lastCompleteDay === yest) ? (P.streak || 0) : 0;
-  const hwDue = hw.filter(h => !h.done && h.due <= today);
   return { P, pct, streak, left: ts.filter(t => !done[t.id]), count: ts.length, dn: dn.length, hwDue, name: P.displayName || "Champ" };
 }
 

@@ -25,3 +25,9 @@ Four tabs: Today, Calendar (Day, Week, Month), Homework, Fitness. Tap the 🔥 o
 
 ## Haptics
 Android vibrates. iPhone/iPad get a light tap on iOS 17.4+ (Safari/Home Screen apps) via a hidden switch control; older iOS has no web haptics.
+
+## Notifications not showing? Checklist
+1. Open Settings -> Reminders. The status lines show what is missing. Tap **Send me a test notification**. If that works, the phone side is fine.
+2. iPhone/iPad: the app must be opened from the **Home Screen icon** (not Safari), on iOS 16.4 or newer, with notifications allowed in Settings -> Notifications -> Streak Buddy.
+3. With the app fully closed, only the GitHub Action can send hourly pushes. It needs `VAPID_KEY` in index.html and the `FIREBASE_SERVICE_ACCOUNT` secret (section 4). Check the Actions tab for green runs.
+4. After changing anything, open Settings -> Reminders -> Save reminder settings once so this device registers again.
