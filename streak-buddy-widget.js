@@ -48,7 +48,7 @@ const wdOf = k => { const [y, m, d] = k.split("-").map(Number); return (new Date
 const toM = s => { const p = s.split(":").map(Number); return p[0] * 60 + p[1]; };
 const dur = t => t.type === "any" ? (+t.mins || 0) : Math.max(0, toM(t.end) - toM(t.start));
 const sched = (t, k) => {
-  if (t.archived) return false;
+  if (t.archived || t.type === 'fixed') return false;
   if (t.rep && t.rep.length) return !(t.createdDate && k < t.createdDate) && !(t.endDate && k > t.endDate) && t.rep.includes(wdOf(k));
   return t.date === k;
 };

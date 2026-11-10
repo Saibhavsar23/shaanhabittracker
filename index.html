@@ -380,6 +380,41 @@
   .wel .fl{display:inline-block;animation:flick .5s infinite alternate}
   @keyframes flick{to{transform:scale(1.25) rotate(8deg)}}
   @media(prefers-reduced-motion:reduce){#view.enter>*,.fab,.tab.on i,.chip.fire.lit,.wel .mascot{animation:none!important}}
+
+  /* month calendar + blocked time */
+  .seg.vt{margin-bottom:12px}
+  .mgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+  .mhead{margin-bottom:5px}.mhead div{text-align:center;font-size:11px;font-weight:900;color:var(--muted);text-transform:uppercase}
+  .mc{position:relative;min-height:62px;background:#fff;border:2px solid var(--line);border-bottom-width:4px;border-radius:12px;padding:4px 4px 3px;display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;transition:transform .12s cubic-bezier(.3,1.6,.5,1)}
+  .mc:active{transform:scale(.93)}
+  .mc.out{opacity:.38}
+  .mc .dn{font-size:11px;font-weight:900;color:var(--muted);align-self:flex-start;line-height:1}
+  .mc small{font-size:10px;font-weight:800;color:var(--muted);line-height:1}
+  .mc .mk,.mleg .mk{font-style:normal;width:20px;height:20px;border-radius:7px;display:grid;place-items:center;font-size:13px;font-weight:900;color:#fff;background:var(--green);margin-top:2px}
+  .mc .mk.box,.mleg .mk.box{background:#fff;border:2px solid #cfd4de}
+  .mc.full{background:#eaf8d9;border-color:#bfe98f}
+  .mc.part{border-color:#ffd9a0}.mc.miss{border-color:#ffc4c4;background:#fff7f7}
+  .mc.today{box-shadow:0 0 0 2px var(--blue)}
+  .mc.sel{background:#e3f4ff;border-color:var(--blue)}
+  .mc .dots{display:flex;gap:2px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+  .mc .dots u,.mleg .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .fxd{position:absolute;right:4px;top:4px;width:8px;height:8px;border-radius:2px;background:repeating-linear-gradient(45deg,#9aa3b2 0 2px,#d5d9e2 2px 4px);font-style:normal}
+  .mleg{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;margin-top:10px;font-size:11px;font-weight:800;color:var(--muted)}
+  .mleg span{display:flex;align-items:center;gap:5px}.mleg .mk{width:16px;height:16px;font-size:10px;margin:0}.mleg .fxd{position:static}
+  .blk.fixed{background:repeating-linear-gradient(135deg,#aab2c0 0 8px,#bcc3cf 8px 16px);color:#fff;border-bottom-color:rgba(0,0,0,.15);opacity:.9;z-index:0;text-shadow:0 1px 0 rgba(0,0,0,.15)}
+  .blk:not(.fixed){z-index:1}
+  .blk.fixed[data-act="more"]{cursor:pointer}
+  .fxstrip{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+  .fxstrip span{background:repeating-linear-gradient(135deg,#eef0f4 0 8px,#e4e7ed 8px 16px);border:2px solid var(--line);border-radius:12px;padding:6px 10px;font-size:12px;font-weight:700;color:var(--muted)}
+  .fxstrip b{color:var(--ink)}
+  @media(min-width:760px){.mc{min-height:84px}.mc .dn{font-size:13px}.mc small{font-size:12px}.mc .mk{width:26px;height:26px;font-size:16px}#view .mgrid,#view .mleg{max-width:760px;margin-left:auto;margin-right:auto}}
+  .chip[data-act]{cursor:pointer}.chip[data-act]:active{transform:scale(.93)}
+  details.sec{border:2px solid var(--line);border-radius:14px;margin:10px 0;background:#fff}
+  details.sec summary{font-weight:900;padding:12px 14px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+  details.sec summary::-webkit-details-marker{display:none}
+  details.sec summary::after{content:'›';font-size:20px;color:var(--muted);transition:transform .2s}
+  details.sec[open] summary::after{transform:rotate(90deg)}
+  details.sec>div{padding:0 14px 12px}
 </style>
 </head>
 <body>
@@ -390,8 +425,8 @@
     <div class="top">
       <div class="hi"><span id="hiName">Hey!</span><small id="hiDate"></small></div>
       <div class="chips">
-        <div class="chip fire">🔥 <span id="chipStreak">0</span></div>
-        <div class="chip xp">⚡ <span id="chipXp">0</span></div>
+        <div class="chip fire" data-act="tab" data-t="rewards" role="button" tabindex="0" title="Streak and rewards">🔥 <span id="chipStreak">0</span></div>
+        <div class="chip xp" data-act="tab" data-t="rewards" role="button" tabindex="0" title="Level and badges">⚡ <span id="chipXp">0</span></div>
         <button class="gear" data-act="settings" aria-label="Settings">⚙️</button>
       </div>
     </div>
@@ -402,10 +437,8 @@
       <div class="brand"><div class="bm" id="brandM"></div><span>Streak Buddy</span></div>
       <div class="tab on" data-act="tab" data-t="today"><i>🏠</i>Today</div>
       <div class="tab" data-act="tab" data-t="cal"><i>🗓️</i>Calendar</div>
-      <div class="tab" data-act="tab" data-t="week"><i>📊</i>Week</div>
-      <div class="tab" data-act="tab" data-t="fitness"><i>🏃</i>Fitness</div>
       <div class="tab" data-act="tab" data-t="homework"><i>📚</i>Homework</div>
-      <div class="tab" data-act="tab" data-t="rewards"><i>🏆</i>Rewards</div>
+      <div class="tab" data-act="tab" data-t="fitness"><i>🏃</i>Fitness</div>
     </div>
   </div>
   <div class="ov" id="ov"><div class="sheet" id="sheetBody"></div></div>
@@ -661,6 +694,7 @@ function seedDemo(db) {
     tasks.push({ id, rep: t[6], type: t[2], mins: t[3], start: t[4], end: t[5] });
     db['users/demo/tasks/' + id] = { title: t[0], icon: t[1], type: t[2], mins: t[3], start: t[4], end: t[5], rep: t[6], date: null, createdDate: start, endDate: null, archived: false, col: t[7] };
   });
+  db['users/demo/tasks/seedSchool'] = { title: 'School', icon: '🏫', type: 'fixed', mins: null, start: '07:45', end: '14:45', rep: [0,1,2,3,4], date: null, createdDate: start, endDate: null, archived: false, col: 0 };
   db['users/demo/tasks/seedOne'] = { title: 'Clean room', icon: '🧹', type: 'any', mins: 15, start: null, end: null, rep: [], date: today, createdDate: today, endDate: null, archived: false, col: 0 };
   const wk = (n, o) => { db['users/demo/workouts/seedW' + n] = Object.assign({ createdAt: Date.now() - n * 1000, notes: '' }, o); };
   wk(1, { kind: 'run', date: addDays(today, -1), distKm: 5.2, secs: 1740, cal: 410, title: 'Easy run' });
@@ -693,13 +727,17 @@ const S = {
   tab: 'today', today: dayOf(), calDate: null, weekOff: 0, preview: false, lastPct: 0,
   justChecked: null, celebrated: {}, subs: [], shown: false,
   workouts: [], workErr: false, fitFilter: 'all', fitShow: 20,
-  homework: [], hwErr: false, lastTab: null, welcomed: false
+  homework: [], hwErr: false, lastTab: null, welcomed: false,
+  calMode: 'day', calMon: 0, hwMode: 'list', hwMon: 0, hwSel: null
 };
 const readOnly = () => S.role !== 'owner' || S.preview;
 const ownerPath = () => 'users/' + S.ownerUid;
 
 const dur = t => t.type === 'any' ? (+t.mins || 0) : Math.max(0, toM(t.end) - toM(t.start));
-function sched(t, k) {
+const isFixed = t => t.type === 'fixed';
+function sched(t, k) { return !isFixed(t) && schedAny(t, k); }
+const fixedFor = k => S.tasks.filter(t => isFixed(t) && schedAny(t, k)).sort((a, b) => toM(a.start) - toM(b.start));
+function schedAny(t, k) {
   if (t.archived) return false;
   if (t.rep && t.rep.length) {
     if (t.createdDate && k < t.createdDate) return false;
@@ -860,7 +898,7 @@ function show(which) { ['splash', 'auth', 'main'].forEach(id => { $('#' + id).hi
 function clearSubs() { S.subs.forEach(u => { try { u(); } catch (e) {} }); S.subs = []; }
 function resetState() {
   clearSubs();
-  Object.assign(S, { role: null, ownerUid: null, profile: null, tasks: [], days: {}, viewers: [], gotProfile: false, gotTasks: false, gotDays: false, tab: 'today', calDate: null, weekOff: 0, preview: false, lastPct: 0, celebrated: {}, shown: false, workouts: [], workErr: false, fitFilter: 'all', fitShow: 20, homework: [], hwErr: false, lastTab: null, welcomed: false });
+  Object.assign(S, { role: null, ownerUid: null, profile: null, tasks: [], days: {}, viewers: [], gotProfile: false, gotTasks: false, gotDays: false, tab: 'today', calDate: null, weekOff: 0, preview: false, lastPct: 0, celebrated: {}, shown: false, workouts: [], workErr: false, fitFilter: 'all', fitShow: 20, homework: [], hwErr: false, lastTab: null, welcomed: false, calMode: 'day', calMon: 0, hwMode: 'list', hwMon: 0, hwSel: null });
 }
 
 function renderAuth(msg) {
@@ -1031,8 +1069,10 @@ function viewToday() {
   const cls = p >= 100 ? 'done' : p >= 60 ? '' : p >= 25 ? 'mid' : 'low';
   let h = '<div class="hero"><div class="hero-row"><div class="mascot" data-act="poke">' + mascot(p, P.mascotColor) + '</div><div class="bubble">' + bubbleMsg(p) + '</div></div>' +
     '<div style="margin-top:12px"><div class="bar-meta"><span>Today\'s goal</span><b>' + p + '%</b></div><div class="bar"><div class="fill ' + cls + '" id="fill" style="width:' + S.lastPct + '%"></div></div>' +
-    '<div class="bar-meta"><span>' + dMin + ' / ' + tMin + ' min</span><span>' + ts.filter(t => dm[t.id]).length + '/' + ts.length + ' tasks</span></div></div></div>' + hwStrip();
+    '<div class="bar-meta"><span>' + dMin + ' / ' + tMin + ' min</span><span>' + ts.filter(t => dm[t.id]).length + '/' + ts.length + ' tasks</span></div></div></div>' + fixedStrip(key);
+  const hwDue = hwOpen().filter(x => x.due <= key).sort(hwSort), hwSec = hwDue.length ? '<h2>📚 Homework due <span>' + hwDue.length + '</span></h2>' + hwDue.map(x => hwRow(x, ro)).join('') : '';
   if (!ts.length) {
+    h += hwSec;
     h += '<div class="empty"><span class="em">🌱</span>' + (ro ? 'Nothing scheduled for today.' : 'No habits for today yet.<br>Tap <b>+</b> to add one, or start with a quick pick:') + '</div>';
     if (!ro) h += '<div class="quick">' + QUICK.map((q, i) => '<button data-act="quick" data-i="' + i + '">' + q[0] + ' ' + q[1] + '</button>').join('') + '</div>';
     return h;
@@ -1040,8 +1080,57 @@ function viewToday() {
   h += '<div class="cols">';
   if (any.length) h += '<div><h2>Do anytime today <span>' + any.filter(t => dm[t.id]).length + '/' + any.length + '</span></h2>' + any.map(t => taskRow(t, key, !ro)).join('') + '</div>';
   if (blk.length) h += '<div><h2>Scheduled blocks <span>' + blk.filter(t => dm[t.id]).length + '/' + blk.length + '</span></h2>' + blk.map(t => taskRow(t, key, !ro)).join('') + '</div>';
+  return h + '</div>' + hwSec;
+}
+
+function fixedStrip(key) {
+  const f = fixedFor(key); if (!f.length) return '';
+  return '<div class="fxstrip">' + f.map(t => '<span>' + esc(t.icon || '🏫') + ' <b>' + esc(t.title) + '</b> ' + fmtT(t.start) + '–' + fmtT(t.end) + '</span>').join('') + '</div>';
+}
+
+/* ---------- month calendar (shared by Calendar + Homework) ---------- */
+function monthInfo(off) {
+  const b = parseKey(S.today); b.setDate(1); b.setMonth(b.getMonth() + off);
+  const y = b.getFullYear(), m = b.getMonth() + 1, first = y + '-' + pad(m) + '-01', dim = new Date(y, m, 0).getDate(), lead = wd(first);
+  const rows = Math.ceil((lead + dim) / 7), start = addDays(first, -lead), keys = [];
+  for (let i = 0; i < rows * 7; i++) keys.push(addDays(start, i));
+  return { y, m, first, keys, label: parseKey(first).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) };
+}
+function monthShell(mi, goAct, cellFn, off) {
+  let h = '<div class="nav"><button data-act="' + goAct + '" data-d="-1" aria-label="Previous month">‹</button><div><b>' + mi.label + '</b><small>' + (off === 0 ? 'This month' : '<a data-act="' + goAct + '" data-d="reset" style="color:var(--blue);font-weight:900">Back to today</a>') + '</small></div><button data-act="' + goAct + '" data-d="1" aria-label="Next month">›</button></div>';
+  h += '<div class="mgrid mhead">' + WD.map(d => '<div>' + d.slice(0, 1) + (d === 'Thu' || d === 'Sat' || d === 'Sun' || d === 'Tue' ? '' : '') + '</div>').join('') + '</div><div class="mgrid">';
+  mi.keys.forEach(k => { h += cellFn(k, k.slice(0, 7) !== mi.first.slice(0, 7)); });
   return h + '</div>';
 }
+function habitCell(k, out) {
+  const ts = tasksFor(k), dm = doneMap(k), n = ts.length, d = ts.filter(t => dm[t.id]).length, fx = fixedFor(k).length;
+  let cls = 'mc' + (out ? ' out' : '') + (k === S.today ? ' today' : ''), body = '';
+  if (n) {
+    if (d === n) { cls += ' full'; body = '<i class="mk">✓</i>'; }
+    else if (k > S.today) { cls += ' fut'; body = '<i class="mk box"></i><small>' + n + '</small>'; }
+    else if (k === S.today) { cls += ' part'; body = '<i class="mk box"></i><small>' + d + '/' + n + '</small>'; }
+    else { cls += d ? ' part' : ' miss'; body = '<i class="mk box"></i><small>' + d + '/' + n + '</small>'; }
+  }
+  return '<div class="' + cls + '" data-act="monthDay" data-k="' + k + '" tabindex="0" role="button"><span class="dn">' + parseKey(k).getDate() + '</span>' + body + (fx ? '<em class="fxd" title="Blocked time"></em>' : '') + '</div>';
+}
+function hwCell(k, out) {
+  const hs = S.homework.filter(h => h.due === k), open = hs.filter(h => !h.done), dn = hs.length - open.length;
+  let cls = 'mc' + (out ? ' out' : '') + (k === S.today ? ' today' : '') + (k === (S.hwSel || S.today) ? ' sel' : ''), body = '';
+  if (hs.length) {
+    if (!open.length) { cls += ' full'; body = '<i class="mk">✓</i>'; }
+    else { if (k < S.today) cls += ' miss'; body = '<span class="dots">' + open.slice(0, 4).map(h => '<u style="background:' + subj(h.subject)[2] + '"></u>').join('') + '</span>' + (hs.length > 1 ? '<small>' + dn + '/' + hs.length + '</small>' : ''); }
+  }
+  return '<div class="' + cls + '" data-act="hwDay" data-k="' + k + '" tabindex="0" role="button"><span class="dn">' + parseKey(k).getDate() + '</span>' + body + '</div>';
+}
+function viewMonthCal() {
+  const off = S.calMon || 0, mi = monthInfo(off);
+  let h = calToggle('month') + monthShell(mi, 'calMonGo', habitCell, off);
+  const inM = mi.keys.filter(k => k.slice(0, 7) === mi.first.slice(0, 7) && k <= S.today && tasksFor(k).length), full = inM.filter(k => pctFor(k) >= 100).length;
+  h += '<div class="mleg"><span><i class="mk">✓</i> all done</span><span><i class="mk box"></i> still to do</span><span><em class="fxd"></em> blocked time</span></div>';
+  if (inM.length) h += '<p class="note" style="text-align:center;margin-top:8px">' + full + ' perfect day' + (full === 1 ? '' : 's') + ' out of ' + inM.length + ' so far this month</p>';
+  return h + '<p class="note" style="text-align:center">Tap a day to see its schedule.</p>';
+}
+const calToggle = m => '<div class="seg vt"><button data-act="calMode" data-v="day" class="' + (m === 'day' ? 'on' : '') + '">📅 Day</button><button data-act="calMode" data-v="week" class="' + (m === 'week' ? 'on' : '') + '">📊 Week</button><button data-act="calMode" data-v="month" class="' + (m === 'month' ? 'on' : '') + '">🗓️ Month</button></div>';
 
 function layoutBlocks(blocks) {
   const res = []; let cl = [], cEnd = -1;
@@ -1055,11 +1144,14 @@ function layoutBlocks(blocks) {
   return res;
 }
 function viewCal() {
+  if (S.calMode === 'month') return viewMonthCal();
+  if (S.calMode === 'week') return calToggle('week') + viewWeek();
   const key = S.calDate || S.today, ts = tasksFor(key), dm = doneMap(key), live = key === S.today && !readOnly();
   const blk = ts.filter(t => t.type === 'block').sort((a, b) => toM(a.start) - toM(b.start)), any = ts.filter(t => t.type === 'any');
-  const PX = 46;
-  const H0 = Math.min(7, blk.length ? Math.floor(Math.min.apply(null, blk.map(t => toM(t.start))) / 60) : 7);
-  const H1 = Math.max(21, blk.length ? Math.ceil(Math.max.apply(null, blk.map(t => toM(t.end))) / 60) : 21);
+  const PX = 46, fx = fixedFor(key), allB = blk.concat(fx);
+  const H0 = Math.min(7, allB.length ? Math.floor(Math.min.apply(null, allB.map(t => toM(t.start))) / 60) : 7);
+  const H1 = Math.max(21, allB.length ? Math.ceil(Math.max.apply(null, allB.map(t => toM(t.end))) / 60) : 21);
+  const fixedHtml = fx.map(t => '<div class="blk fixed"' + (readOnly() ? '' : ' data-act="more" data-id="' + t.id + '"') + ' style="top:' + (toM(t.start) / 60 - H0) * PX + 'px;height:' + Math.max((toM(t.end) - toM(t.start)) / 60 * PX, 30) + 'px;left:34px;width:calc(100% - 40px)"><div class="bc">🔒</div>' + esc(t.icon || '🏫') + ' ' + esc(t.title) + '<small>' + fmtT(t.start) + '–' + fmtT(t.end) + ' · blocked off</small></div>').join('');
   let hrs = ''; for (let h = H0; h <= H1; h++) hrs += '<div class="hr" style="top:' + (h - H0) * PX + 'px;height:' + PX + 'px">' + fmtT(h + ':00') + '</div>';
   const blocks = layoutBlocks(blk).map(b => {
     const t = b.t, top = (toM(t.start) / 60 - H0) * PX, ht = Math.max((toM(t.end) - toM(t.start)) / 60 * PX, 30), done = !!dm[t.id];
@@ -1068,15 +1160,15 @@ function viewCal() {
   }).join('');
   const nm = nowMin(), nowLine = key === S.today && nm >= H0 * 60 && nm <= (H1 + 1) * 60 ? '<div class="now" style="top:' + ((nm / 60 - H0) * PX) + 'px"></div>' : '';
   const isT = key === S.today;
-  return '<div class="nav"><button data-act="calGo" data-d="-1" aria-label="Previous day">‹</button><div><b>' + (isT ? 'Today' : prettyDate(key)) + '</b><small>' + (isT ? prettyDate(key) : (key === addDays(S.today, 1) ? 'Tomorrow' : '') + ' · ' + pctFor(key) + '% done') + '</small></div><button data-act="calGo" data-d="1" aria-label="Next day">›</button></div>' +
-    '<div class="cal"><div class="tl" style="height:' + (H1 - H0 + 1) * PX + 'px">' + hrs + blocks + nowLine + '</div>' +
+  return calToggle('day') + '<div class="nav"><button data-act="calGo" data-d="-1" aria-label="Previous day">‹</button><div><b>' + (isT ? 'Today' : prettyDate(key)) + '</b><small>' + (isT ? prettyDate(key) : (key === addDays(S.today, 1) ? 'Tomorrow' : '') + ' · ' + pctFor(key) + '% done') + '</small></div><button data-act="calGo" data-d="1" aria-label="Next day">›</button></div>' +
+    '<div class="cal"><div class="tl" style="height:' + (H1 - H0 + 1) * PX + 'px">' + hrs + fixedHtml + blocks + nowLine + '</div>' +
     '<div class="side"><h3>Anytime</h3>' + (any.length ? any.map(t => '<div class="sc ' + (dm[t.id] ? 'done' : '') + '"' + (live ? ' data-act="toggle" data-id="' + t.id + '"' : '') + '>' + esc(t.icon || '') + ' ' + esc(t.title) + '<small>' + t.mins + ' min ' + (dm[t.id] ? '✓' : '') + '</small></div>').join('') : '<div class="sc"><small>Nothing here</small></div>') + '</div></div>';
 }
 
 function weekModel(off) {
   const ws = addDays(weekStart(S.today), -7 * off), keys = []; for (let i = 0; i < 7; i++) keys.push(addDays(ws, i));
   const st = (t, k) => { if (!sched(t, k)) return 'o'; if (doneMap(k)[t.id]) return 'y'; if (k > S.today) return 'u'; if (k === S.today) return 't'; return 'n'; };
-  const rows = S.tasks.filter(t => t.rep && t.rep.length && !t.archived).map(t => ({ t, cells: keys.map(k => st(t, k)) })).filter(r => r.cells.some(c => c !== 'o'));
+  const rows = S.tasks.filter(t => !isFixed(t) && t.rep && t.rep.length && !t.archived).map(t => ({ t, cells: keys.map(k => st(t, k)) })).filter(r => r.cells.some(c => c !== 'o'));
   let total = 0, done = 0;
   rows.forEach(r => r.cells.forEach(c => { if (c !== 'o') total++; if (c === 'y') done++; }));
   return { ws, keys, rows, total, done, pct: total ? Math.round(done / total * 100) : 0 };
@@ -1210,10 +1302,10 @@ let FM = null;
 function openTaskForm(task) {
   const t = task || { type: 'any', mins: 20, start: '17:00', end: '18:00', rep: [], date: S.today, icon: '⭐', title: '' };
   FM = { id: task ? task.id : null, type: t.type, icon: t.icon || '⭐', rep: (t.rep || []).slice(), orig: task || null };
-  openSheet('<h3>' + (task ? 'Edit habit ✏️' : 'New habit ✨') + '</h3>' +
+  openSheet('<h3>' + (task ? (t.type === 'fixed' ? 'Edit blocked time ✏️' : 'Edit habit ✏️') : 'New habit ✨') + '</h3>' +
     '<label>What is it?</label><input id="fTitle" placeholder="e.g. Read 20 pages" maxlength="40" value="' + esc(t.title) + '">' +
     '<label>Icon</label><div class="icons" id="fIcons">' + ICONS.map(i => '<button data-act="ficon" data-i="' + i + '" class="' + (i === FM.icon ? 'on' : '') + '">' + i + '</button>').join('') + '</div>' +
-    '<label>Type</label><div class="seg"><button data-act="ftype" data-v="any" id="tyAny">✅ Anytime today</button><button data-act="ftype" data-v="block" id="tyBlk">⏰ Time block</button></div>' +
+    '<label>Type</label><div class="seg"><button data-act="ftype" data-v="any" id="tyAny">✅ Anytime today</button><button data-act="ftype" data-v="block" id="tyBlk">⏰ Set time</button><button data-act="ftype" data-v="fixed" id="tyFix">🏫 Blocked time</button></div><p class="note" id="fixNote" hidden>For things like school or work. It shows as blocked-off time on your calendar. You can\'t check it off, and it doesn\'t count toward your bar, XP or streak.</p>' +
     '<div id="anyF"><label>How long (minutes)?</label><input id="fMins" type="number" inputmode="numeric" min="1" max="600" value="' + (t.mins || 20) + '"></div>' +
     '<div id="blkF"><label>Start → End</label><div class="row2"><input id="fStart" type="time" value="' + (t.start || '17:00') + '"><input id="fEnd" type="time" value="' + (t.end || '18:00') + '"></div></div>' +
     '<label>Repeat weekly on <span style="text-transform:none;font-weight:700">(leave empty for just once)</span></label><div class="days" id="fDays">' + WD1.map((d, i) => '<button data-act="fday" data-d="' + i + '" title="' + WD[i] + '">' + d + '</button>').join('') + '</div>' +
@@ -1222,8 +1314,8 @@ function openTaskForm(task) {
   syncForm();
 }
 function syncForm() {
-  $('#tyAny').className = FM.type === 'any' ? 'on' : ''; $('#tyBlk').className = FM.type === 'block' ? 'on' : '';
-  $('#anyF').hidden = FM.type !== 'any'; $('#blkF').hidden = FM.type !== 'block'; $('#dateF').hidden = FM.rep.length > 0;
+  $('#tyAny').className = FM.type === 'any' ? 'on' : ''; $('#tyBlk').className = FM.type === 'block' ? 'on' : ''; $('#tyFix').className = FM.type === 'fixed' ? 'on' : '';
+  $('#anyF').hidden = FM.type !== 'any'; $('#blkF').hidden = FM.type === 'any'; $('#fixNote').hidden = FM.type !== 'fixed'; $('#dateF').hidden = FM.rep.length > 0;
   document.querySelectorAll('#fDays button').forEach(b => b.classList.toggle('on', FM.rep.indexOf(+b.dataset.d) >= 0));
   document.querySelectorAll('#fIcons button').forEach(b => b.classList.toggle('on', b.dataset.i === FM.icon));
 }
@@ -1231,7 +1323,7 @@ function saveTask() {
   const title = $('#fTitle').value.trim(); if (!title) return toast('Give it a name first 🙂');
   const d = { title, icon: FM.icon, type: FM.type, rep: FM.rep.slice().sort(), updatedAt: Date.now() };
   if (FM.type === 'any') { const m = parseInt($('#fMins').value, 10); if (!(m >= 1 && m <= 600)) return toast('Pick between 1 and 600 minutes'); d.mins = m; d.start = null; d.end = null; }
-  else { const s = $('#fStart').value, e = $('#fEnd').value; if (!s || !e || toM(e) <= toM(s)) return toast('End time must be after the start'); d.start = s; d.end = e; d.mins = null; }
+  else { /* block or fixed */ const s = $('#fStart').value, e = $('#fEnd').value; if (!s || !e || toM(e) <= toM(s)) return toast('End time must be after the start'); d.start = s; d.end = e; d.mins = null; }
   d.date = FM.rep.length ? null : ($('#fDate').value || S.today);
   const o = FM.orig, id = FM.id || rid();
   if (!o) { d.createdDate = S.today; d.endDate = null; d.archived = false; d.col = Math.floor(Math.random() * BLOCKCOLS.length); }
@@ -1239,7 +1331,8 @@ function saveTask() {
   const before = pctFor(S.today);
   B.set(ownerPath() + '/tasks/' + id, d).catch(() => toast('Couldn\'t save. Check your connection.'));
   closeSheet();
-  if (!o && (d.rep.indexOf(wd(S.today)) >= 0 || d.date === S.today)) toast(before > 0 ? 'Added! Your bar shrank a little. You\'ve got this 💪' : 'Habit added! ✨');
+  if (d.type === 'fixed') toast(o ? 'Saved ✓' : 'Blocked off 🏫');
+  else if (!o && (d.rep.indexOf(wd(S.today)) >= 0 || d.date === S.today)) toast(before > 0 ? 'Added! Your bar shrank a little. You\'ve got this 💪' : 'Habit added! ✨');
   else toast(o ? 'Saved ✓' : 'Habit added! ✨');
 }
 function openTaskMenu(id) {
@@ -1266,29 +1359,28 @@ function quickAdd(i) {
 }
 
 function openSettings() {
-  const P = S.profile, owner = S.role === 'owner' && !S.preview;
+  const P = S.profile, owner = S.role === 'owner' && !S.preview, op = k => S.setOpen === k ? ' open' : '';
+  const sec = (k, title, body) => '<details class="sec"' + op(k) + '><summary>' + title + '</summary><div>' + body + '</div></details>';
   let h = '<h3>Settings ⚙️</h3>';
+  if (owner) h += '<label>Your name</label><input id="sName" maxlength="20" value="' + esc(P.displayName || '') + '"><label>Buddy name</label><input id="sBuddy" maxlength="16" value="' + esc(P.mascotName || '') + '">';
+  h += sec('sound', '🔊 Sound & vibration', '<div class="tog"><span>Sounds</span><button class="btn sm alt" data-act="mute">' + (muted() ? 'Off' : 'On') + '</button></div><div class="tog" style="margin-top:8px"><span>Haptics</span><button class="btn sm alt" data-act="hap">' + (hapOn() ? 'On' : 'Off') + '</button></div><p class="note" style="margin-top:4px">Android vibrates. iPhone and iPad get a light tap on iOS 17.4 or newer.</p>');
   if (owner) {
-    h += '<label>Your name</label><input id="sName" maxlength="20" value="' + esc(P.displayName || '') + '"><label>Buddy name</label><input id="sBuddy" maxlength="16" value="' + esc(P.mascotName || '') + '">' +
-      '<label>Streak counts when the bar reaches</label><select id="sTh">' + [80, 90, 100].map(v => '<option value="' + v + '"' + ((P.threshold || 100) === v ? ' selected' : '') + '>' + v + '%</option>').join('') + '</select>' +
-      '<label>Distance unit</label><select id="sUnit"><option value="mi"' + (U() === 'mi' ? ' selected' : '') + '>Miles</option><option value="km"' + (U() === 'km' ? ' selected' : '') + '>Kilometers</option></select>' +
-      '<label>Weight unit</label><select id="sWu"><option value="lb"' + (WU() === 'lb' ? ' selected' : '') + '>Pounds (lb)</option><option value="kg"' + (WU() === 'kg' ? ' selected' : '') + '>Kilograms (kg)</option></select>' +
+    h += sec('rem', '🔔 Reminders', remindUI(P).replace('<label>🔔 Hourly reminders</label>', ''));
+    h += sec('goals', '🎯 Goals & units', '<label>Streak counts when the bar reaches</label><select id="sTh">' + [80, 90, 100].map(v => '<option value="' + v + '"' + ((P.threshold || 100) === v ? ' selected' : '') + '>' + v + '%</option>').join('') + '</select>' +
       '<label>Weekly workout goal</label><select id="sGoal">' + [1, 2, 3, 4, 5, 6, 7].map(v => '<option value="' + v + '"' + (goalOf() === v ? ' selected' : '') + '>' + v + ' workout' + (v > 1 ? 's' : '') + ' a week</option>').join('') + '</select>' +
-      '<button class="btn" data-act="saveSettings">Save</button>';
-  }
-  h += '<div class="tog" style="margin-top:14px"><span>🔊 Sounds</span><button class="btn sm alt" data-act="mute">' + (muted() ? 'Off' : 'On') + '</button></div>';
-  h += '<div class="tog" style="margin-top:8px"><span>📳 Haptics</span><button class="btn sm alt" data-act="hap">' + (hapOn() ? 'On' : 'Off') + '</button></div><p class="note" style="margin-top:4px">Android vibrates. iPhone and iPad get a light tap on iOS 17.4 or newer.</p>';
-  if (owner) h += remindUI(P);
-  if (owner) {
-    h += '<label>Parent / family access</label><p class="note">Give this code to your dad. He creates his own account here, picks "I\'m checking in on someone", and enters it. He can see your progress but can\'t change anything.</p>' +
+      '<label>Distance unit</label><select id="sUnit"><option value="mi"' + (U() === 'mi' ? ' selected' : '') + '>Miles</option><option value="km"' + (U() === 'km' ? ' selected' : '') + '>Kilometers</option></select>' +
+      '<label>Weight unit</label><select id="sWu"><option value="lb"' + (WU() === 'lb' ? ' selected' : '') + '>Pounds (lb)</option><option value="kg"' + (WU() === 'kg' ? ' selected' : '') + '>Kilograms (kg)</option></select>');
+    let fam = '<p class="note">Give this code to your dad. He creates his own account here, picks "I\'m checking in on someone", and enters it. He can see your progress but can\'t change anything.</p>' +
       '<div class="code">' + esc(P.inviteCode || '------') + '</div><div style="display:flex;gap:8px;justify-content:center"><button class="btn sm" data-act="copyCode">Copy code</button>' + (B.demo ? '' : '<button class="btn sm alt" data-act="newCode">New code</button>') + '</div>';
-    if (S.viewers.length) h += '<label>Connected</label>' + S.viewers.map(v => '<div class="vrow"><span>👀 ' + esc(v.name || 'Viewer') + '</span><button class="btn sm red" data-act="rmViewer" data-id="' + v.id + '">Remove</button></div>').join('');
+    if (S.viewers.length) fam += '<label>Connected</label>' + S.viewers.map(v => '<div class="vrow"><span>👀 ' + esc(v.name || 'Viewer') + '</span><button class="btn sm red" data-act="rmViewer" data-id="' + v.id + '">Remove</button></div>').join('');
+    h += sec('fam', '👨‍👩‍👦 Parent access', fam);
+    h += '<button class="btn" data-act="saveSettings">Save</button>';
   }
-  if (B.demo) h += '<label>Demo tools</label><button class="btn alt" style="margin-top:0" data-act="preview">👀 Preview parent view</button><button class="btn alt" data-act="resetDemo">Reset demo data</button>';
+  if (B.demo) h += '<button class="btn alt" data-act="preview">👀 Preview parent view</button><button class="btn alt" data-act="resetDemo">Reset demo data</button>';
   if (S.role === 'viewer') h += '<button class="btn alt" data-act="unlink">Stop following</button>';
   if (!B.demo) h += '<button class="btn alt" data-act="signout">Sign out</button>';
   h += '<button class="btn alt" data-act="closeSheet">Close</button>';
-  openSheet(h);
+  S.setOpen = null; openSheet(h);
 }
 function saveSettings() {
   const d = { displayName: $('#sName').value.trim() || 'Champ', mascotName: $('#sBuddy').value.trim() || 'Bloop', threshold: +$('#sTh').value, unit: $('#sUnit').value, wunit: $('#sWu').value, weeklyGoal: +$('#sGoal').value };
@@ -1300,7 +1392,7 @@ async function newCode() {
     await B.set('invites/' + code, { ownerUid: S.auth.uid, createdAt: Date.now() });
     await B.set(ownerPath(), { inviteCode: code });
     if (old) B.del('invites/' + old).catch(() => {});
-    toast('New code created'); setTimeout(openSettings, 400);
+    toast('New code created'); S.setOpen = 'fam'; setTimeout(openSettings, 400);
   } catch (e) { toast('Couldn\'t create a new code.'); }
 }
 async function unlink() {
@@ -1349,8 +1441,8 @@ function viewHomework() {
   const pct = doneWk + dueWk ? Math.round(doneWk / (doneWk + dueWk) * 100) : (all.length ? 100 : 0);
   const now = over.length + today.length;
   const msg = !all.length ? 'Add your first assignment and I\'ll cheer you on!' : !now ? (open.length ? 'Nothing due today. Get ahead and you\'ll thank yourself! 😎' : 'All caught up! You\'re a legend 🎉') : over.length ? over.length + ' overdue. Knock one out and feel the weight lift 💪' : today.length + ' due today. You\'ve got this!';
-  let h = '<div class="hero"><div class="hero-row"><div class="mascot" data-act="poke">' + mascot(now ? Math.max(20, pct) : 100, P.mascotColor) + '</div><div class="bubble">' + esc(msg) + '</div></div>' +
-    '<div style="margin-top:12px"><div class="bar-meta"><span>Homework this week</span><b>' + pct + '%</b></div><div class="bar"><div class="fill ' + (pct >= 100 ? 'done' : pct >= 60 ? '' : pct >= 25 ? 'mid' : 'low') + '" style="width:' + pct + '%"></div></div>' +
+  if (S.hwMode === 'month') return hwToggle2('month') + viewHwMonth(ro);
+  let h = hwToggle2('list') + '<div class="hero"><div><div class="bar-meta"><span style="font-size:15px;color:var(--ink);font-weight:900">' + (now ? now + ' to do now' : 'All caught up 🎉') + '</span><b>' + pct + '%</b></div><div class="bar"><div class="fill ' + (pct >= 100 ? 'done' : pct >= 60 ? '' : pct >= 25 ? 'mid' : 'low') + '" style="width:' + pct + '%"></div></div>' +
     '<div class="bar-meta"><span>' + doneWk + ' finished</span><span>' + dueWk + ' to go</span></div></div></div>';
   const sec = (title, arr, extra) => arr.length ? '<h2>' + title + ' <span>' + arr.length + '</span></h2>' + arr.map(x => hwRow(x, ro)).join('') : '';
   if (!all.length) return h + '<div class="empty"><span class="em">📚</span>' + (ro ? 'No homework added yet.' : 'No homework yet.<br>Tap <b>+</b> to add an assignment. Finishing them earns XP!') + '</div>';
@@ -1362,8 +1454,18 @@ function viewHomework() {
 }
 
 let HW = null;
+const hwToggle2 = m => '<div class="seg vt"><button data-act="hwMode" data-v="list" class="' + (m === 'list' ? 'on' : '') + '">📋 List</button><button data-act="hwMode" data-v="month" class="' + (m === 'month' ? 'on' : '') + '">🗓️ Month</button></div>';
+function viewHwMonth(ro) {
+  const off = S.hwMon || 0, mi = monthInfo(off), sel = S.hwSel || S.today;
+  let h = monthShell(mi, 'hwMonGo', hwCell, off);
+  h += '<div class="mleg"><span><i class="mk">✓</i> all done</span><span><u class="dot" style="background:var(--blue)"></u> due (colored by subject)</span></div>';
+  const list = S.homework.filter(x => x.due === sel).sort(hwSort);
+  h += '<h2>' + (sel === S.today ? 'Today' : prettyDate(sel)) + ' <span>' + list.length + '</span></h2>';
+  h += list.length ? list.map(x => hwRow(x, ro)).join('') : '<div class="empty" style="padding:14px"><span class="em">🌤️</span>Nothing due this day.</div>';
+  return h;
+}
 function openHwForm(h) {
-  const t = h || { title: '', subject: 'Math', due: S.today, mins: 30, pri: 1, notes: '' };
+  const t = h || { title: '', subject: 'Math', due: (S.tab === 'homework' && S.hwSel) || S.today, mins: 30, pri: 1, notes: '' };
   HW = { id: h ? h.id : null, subject: t.subject || 'Other', pri: t.pri == null ? 1 : t.pri, orig: h || null };
   openSheet('<h3>' + (h ? 'Edit homework ✏️' : 'New homework 📚') + '</h3>' +
     '<label>What is it?</label><input id="hTitle" maxlength="60" placeholder="e.g. Chapter 5 problems" value="' + esc(t.title) + '">' +
@@ -1746,16 +1848,22 @@ const ACT = {
   fday: el => { const d = +el.dataset.d, i = FM.rep.indexOf(d); if (i >= 0) FM.rep.splice(i, 1); else FM.rep.push(d); syncForm(); },
   saveTask, editTask: el => { const t = S.tasks.find(x => x.id === el.dataset.id); if (t) openTaskForm(t); },
   askDelete: el => askDelete(el.dataset.id), doDelete: el => doDelete(el.dataset.id),
+  calMode: el => { S.calMode = el.dataset.v; renderAll(); },
+  calMonGo: el => { S.calMon = el.dataset.d === 'reset' ? 0 : (S.calMon || 0) + +el.dataset.d; renderAll(); },
+  monthDay: el => { const k = el.dataset.k; S.calDate = k === S.today ? null : k; S.calMode = 'day'; renderAll(); },
+  hwMode: el => { S.hwMode = el.dataset.v; renderAll(); },
+  hwMonGo: el => { S.hwMon = el.dataset.d === 'reset' ? 0 : (S.hwMon || 0) + +el.dataset.d; if (el.dataset.d === 'reset') S.hwSel = null; renderAll(); },
+  hwDay: el => { S.hwSel = el.dataset.k; renderAll(); },
   hwToggle: el => hwToggle(el.dataset.id, el), hwMore: el => openHwMenu(el.dataset.id),
   editHw: el => { const h = S.homework.find(x => x.id === el.dataset.id); if (h) openHwForm(h); },
   askDelHw: el => askDelHw(el.dataset.id), doDelHw: el => doDelHw(el.dataset.id),
   hsubj: el => { HW.subject = el.dataset.s; syncHw(); }, hpri: el => { HW.pri = +el.dataset.p; syncHw(); },
   hdue: el => { $('#hDue').value = addDays(S.today, +el.dataset.n); },
   saveHw,
-  hap: () => { try { localStorage.setItem('sb_nohap', hapOn() ? '1' : '0'); } catch (e) {} openSettings(); if (hapOn()) buzz(20); },
+  hap: () => { try { localStorage.setItem('sb_nohap', hapOn() ? '1' : '0'); } catch (e) {} S.setOpen = 'sound'; openSettings(); if (hapOn()) buzz(20); },
   remindOn: () => remindSave(true), remindOff: () => remindSave(false),
   saveSettings, newCode, unlink,
-  mute: () => { try { localStorage.setItem('sb_mute', muted() ? '0' : '1'); } catch (e) {} openSettings(); },
+  mute: () => { try { localStorage.setItem('sb_mute', muted() ? '0' : '1'); } catch (e) {} S.setOpen = 'sound'; openSettings(); },
   copyCode: () => { try { navigator.clipboard.writeText(S.profile.inviteCode); toast('Code copied 📋'); } catch (e) { toast('Code: ' + S.profile.inviteCode); } },
   rmViewer: el => { B.del(ownerPath() + '/viewers/' + el.dataset.id).then(() => toast('Removed')).catch(() => toast('Couldn\'t remove.')); },
   preview: () => { S.preview = true; closeSheet(); S.tab = 'today'; renderAll(); },
@@ -1778,7 +1886,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if ($('#cel').classList.contains('show')) $('#cel').classList.remove('show');
     else if (ov.classList.contains('show')) closeSheet();
-  } else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.task[data-act="toggle"], .task[data-act="hwToggle"], .hwstrip, .tab')) { e.preventDefault(); e.target.click(); }
+  } else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.task[data-act="toggle"], .task[data-act="hwToggle"], .hwstrip, .tab, .mc')) { e.preventDefault(); e.target.click(); }
 });
 
 /* =====================================================================

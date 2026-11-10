@@ -14,7 +14,7 @@ const fmt = (tz, date) => {
 const wdOf = key => { const [y, m, d] = key.split('-').map(Number); return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7; }; // Mon=0
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const sched = (t, k) => {
-  if (t.archived) return false;
+  if (t.archived || t.type === 'fixed') return false;
   if (t.rep && t.rep.length) return !(t.createdDate && k < t.createdDate) && !(t.endDate && k > t.endDate) && t.rep.includes(wdOf(k));
   return t.date === k;
 };
